@@ -26,8 +26,7 @@ const verifyJwt = (req, res, next) => {
 }
 // connecting database
 //-------------------------
-const uri =
-  `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.o2iwt.mongodb.net/myFirstDatabase?retryWrites=true&w=majority`;
+const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@screw.vixmv.mongodb.net/?retryWrites=true&w=majority`;
 const client = new MongoClient(uri, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
@@ -39,15 +38,24 @@ const client = new MongoClient(uri, {
 const run = async () => {
   try {
     await client.connect();
-    const fruit = client.db("eFruits-Management").collection("fruits");
- 
+    console.log('Mongo Connected');
+    const users = client.db('Screw').collection('users');
     //auth
+    app.post('/login', async (req, res) => {
+      const user = req.body;
+      const result = await users.insertOne(user);
+      console.log(user.displayName, 'Added Successfully to the user list');
+      const accessToken = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, {
+        expiresIn: '1h',
+      });
+      res.send({ accessToken,result });
+    })
     
   } finally {
     console.log("Everything is fine.");
   }
 };
-run().catch(console.log);
+run().catch(console.dir);
 
 // running the server
 //-------------------------------------
