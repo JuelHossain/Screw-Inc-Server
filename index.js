@@ -10,7 +10,7 @@ app.use(cors());
 app.use(express.json());
 
 // verifying jwt token 
-const verifyJwt = (req, res, next) => {
+const verifyJwt =  (req, res, next) => {
   const authHeader = req.headers.authorization;
   if (!authHeader) {
     return res.status(401).send({ message: 'unauthorized' });
@@ -55,14 +55,58 @@ const run = async () => {
         expiresIn: "1h",
       });
       res.send({ token, result });
-      console.log(user.displayName,'posted')
     });
 
-    app.get('/users', verifyJwt, async (req, res) => {
+    //make an admin
+    app.put('/users/admin/:email',verifyJwt, async (req, res) => {
+      const email = req.params.email;
+      const requester = req.decoded.email
+      const requesterIndb = await usersCollection.findOne({
+        email: requester
+      });
+      if (requesterIndb.admin) {
+        const filter = { email: email };
+        const value = req.body;
+        updatedUser = {
+          $set: value,
+        };
+        const result = await usersCollection.updateOne(filter, updatedUser);
+        res.send(result);
+      } else {
+        res.status(403).send({ message: 'forbidden' });
+      }
+      // check admin
+      app.get('/admin/:email', async (req, res) => {
+        const email = req.params.email;
+        const user = await usersCollection.findOne({email:email});
+        const isAdmin = user.admin;
+        res.send({ isAdmin });
+      })
+      //delete
+      app.delete('/users/:email', verifyJwt, async (req, res) => {
+        const email = req.params.email;
+        const requester = req.decoded.email;
+        const requesterIndb = await usersCollection.findOne({
+          email: requester,
+        });
+        if (requesterIndb.admin) {
+          const filter = { email: email };
+          console.log('i am here')
+          const result = await usersCollection.deleteOne(filter);
+          res.send(result);
+          console.log(
+           email,'deleted'
+          );
+        } else {
+          res.status(403).send({ message: "forbidden" });
+        }
+      })
+    });
+
+    app.get('/users',verifyJwt, async (req, res) => {
       const query = {};
       const users = await usersCollection.find(query).toArray();
       res.send(users);
-      console.log(users.length, 'user sent');
     })
     
   } finally {
