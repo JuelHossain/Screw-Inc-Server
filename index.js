@@ -6,6 +6,9 @@ const port = process.env.PORT || 5000;
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const jwt = require("jsonwebtoken");
 const verify = require("jsonwebtoken/verify");
+const pay = require("./payment");
+const SSLCommerzPayment = require("sslcommerz").SslCommerzPayment;
+
 app.use(cors());
 app.use(express.json());
 
@@ -175,6 +178,60 @@ const run = async () => {
       const result = await productsCollection.deleteOne(query);
       res.send(result);
       console.log(productsCollection.name, "deleted");
+    });
+     app.post("/orders", async (req, res) => {
+       const order = req.body;
+       const result = await ordersCollection.insertOne(order);
+       res.send(result);
+       console.log(order.product_name, "posted");
+     });
+    app.get('/payment/:id', verifyJwt, async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: ObjectId(id) };
+      const result = await ordersCollection.findOne(query);
+      console.log(result);
+     const sslcommer =await  new SSLCommerzPayment(
+       process.env.SSL_STORE_ID,
+       process.env.SSL_PASS,
+       false
+     ); //true for live default false for sandbox
+      await sslcommer.init(result).then((data) => {
+        console.log(data);
+      //  process the response that got from sslcommerz
+       https://developer.sslcommerz.com/doc/v4/#returned-parameters
+       if (data?.GatewayPageURL) {
+         return res.status(200).redirect(data?.GatewayPageURL);
+       } else {
+         return res
+           .status(400)
+           .json({ message: "ssl session was not successful" });
+       }
+     });
+      console.log("order details sent of", result.product_name);
+    });
+
+    app.get(`/payment/:id`, async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: ObjectId(id) };
+      const data = ordersCollection.findOne(query);
+      console.log(data);
+      res.send(data);
+      const sslcommer = new SSLCommerzPayment(
+        process.env.SSL_STORE_ID,
+        process.env.SSL_PASS,
+        false
+      ); //true for live default false for sandbox
+      sslcommer.init(data).then((data) => {
+        //process the response that got from sslcommerz
+        //https://developer.sslcommerz.com/doc/v4/#returned-parameters
+        if (data?.GatewayPageURL) {
+          return res.status(200).redirect(data?.GatewayPageURL);
+        } else {
+          return res
+            .status(400)
+            .json({ message: "ssl session was not successful" });
+        }
+      });
     });
   } finally {
     console.log("!");
