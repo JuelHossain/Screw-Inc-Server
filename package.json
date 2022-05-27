@@ -18,5 +18,8 @@
     "jsonwebtoken": "^8.5.1",
     "mongodb": "^4.6.0",
     "sslcommerz": "^1.7.0"
+  },
+  "devDependencies": {
+    "http-proxy-middleware": "^2.0.6"
   }
 }

@@ -8,10 +8,12 @@ const jwt = require("jsonwebtoken");
 const verify = require("jsonwebtoken/verify");
 const pay = require("./payment");
 const SSLCommerzPayment = require("sslcommerz").SslCommerzPayment;
+const { createProxyMiddleware } = require("http-proxy-middleware");
 
 app.use(cors());
 app.use(express.json());
-
+app.enable("trust proxy");
+//
 // verifying jwt token
 const verifyJwt = (req, res, next) => {
   const authHeader = req.headers.authorization;
@@ -45,6 +47,8 @@ const run = async () => {
     const usersCollection = client.db("Screw").collection("users");
     const productsCollection = client.db("Screw").collection("products");
     const ordersCollection = client.db("Screw").collection("orders");
+    const paymentsCollection = client.db("Screw").collection("payments");
+    const ipnCollection = client.db("Screw").collection("ipn");
     //auth
     // verify admin
     const verifyAdmin = async (req, res, next) => {
@@ -71,7 +75,7 @@ const run = async () => {
         options
       );
       const token = jwt.sign({ email }, process.env.ACCESS_TOKEN_SECRET, {
-        expiresIn: "1h",
+        expiresIn: "1d",
       });
       res.send({ token, result });
     });
@@ -169,7 +173,7 @@ const run = async () => {
       };
       const result = await productsCollection.updateOne(filter, updatedDoc, options);
       res.send(result);
-      console.log(productsCollection.name,'updated')
+      console.log(productsCollection.name, 'updated')
     });
     //deleting single product from data base
     app.delete("/products/:id", async (req, res) => {
@@ -179,61 +183,89 @@ const run = async () => {
       res.send(result);
       console.log(productsCollection.name, "deleted");
     });
-     app.post("/orders", async (req, res) => {
-       const order = req.body;
-       const result = await ordersCollection.insertOne(order);
-       res.send(result);
-       console.log(order.product_name, "posted");
-     });
-    app.get('/payment/:id', verifyJwt, async (req, res) => {
+    //posting orders
+    app.post("/orders", async (req, res) => {
+      const order = req.body;
+      const result = await ordersCollection.insertOne(order);
+      res.send(result);
+      console.log(order.product_name, "posted");
+    });
+    //getting all orders
+    app.get("/orders", async (req, res) => {
+      const query = {};
+      const result = await ordersCollection.find(query).toArray();
+      res.send(result);
+      console.log('all orders sent');
+    });
+    // getting single orders by id
+    app.get('/orders/:id', async (req, res) => {
       const id = req.params.id;
       const query = { _id: ObjectId(id) };
       const result = await ordersCollection.findOne(query);
-      console.log(result);
-     const sslcommer =await  new SSLCommerzPayment(
-       process.env.SSL_STORE_ID,
-       process.env.SSL_PASS,
-       false
-     ); //true for live default false for sandbox
-      await sslcommer.init(result).then((data) => {
-        console.log(data);
-      //  process the response that got from sslcommerz
-       https://developer.sslcommerz.com/doc/v4/#returned-parameters
-       if (data?.GatewayPageURL) {
-         return res.status(200).redirect(data?.GatewayPageURL);
-       } else {
-         return res
-           .status(400)
-           .json({ message: "ssl session was not successful" });
-       }
-     });
-      console.log("order details sent of", result.product_name);
+      res.send(result);
     });
-
-    app.get(`/payment/:id`, async (req, res) => {
+    // updating orders paid or not 
+    app.put('/orders/:id', async (req, res) => {
       const id = req.params.id;
+      const payment = req.body;
       const query = { _id: ObjectId(id) };
-      const data = ordersCollection.findOne(query);
-      console.log(data);
-      res.send(data);
-      const sslcommer = new SSLCommerzPayment(
-        process.env.SSL_STORE_ID,
-        process.env.SSL_PASS,
-        false
-      ); //true for live default false for sandbox
-      sslcommer.init(data).then((data) => {
-        //process the response that got from sslcommerz
-        //https://developer.sslcommerz.com/doc/v4/#returned-parameters
-        if (data?.GatewayPageURL) {
-          return res.status(200).redirect(data?.GatewayPageURL);
-        } else {
-          return res
-            .status(400)
-            .json({ message: "ssl session was not successful" });
-        }
-      });
-    });
-  } finally {
+      const updatedDoc = {
+        $set: payment
+      }
+      const result = await ordersCollection.updateOne(query, updatedDoc, { upsert: true });
+      res.send(result);
+      console.log(payment, 'paid');
+    })
+    // app.post('/payments', async (req, res) => {
+    //   const payment = req.body;
+    //   const result = await paymentsCollection.insertOne(payment);
+    //   res.send(result);
+    //   console.log('payment', 'posted');
+    // });
+    // app.put("/payments/:id", async (req, res) => {
+    //   const id = req.params.id;
+    //   const status = req.body
+    //   const filter = { _id: ObjectId(id) };
+    //   const options = { upsert: true };
+    //   const updatedDoc = {
+    //     $set: status,
+    //   };
+    //   const result = await paymentsCollection.updateOne(
+    //     filter,
+    //     updatedDoc,
+    //     options
+    //   );
+    //   res.send(result);
+    //   console.log(status.transactionId, "paid");
+    // })
+    // app.get("/payments/:id", async (req, res) => {
+    //   const id = req.params.id;
+    //   const query = { _id: ObjectId(id) };
+    //   const paymentData = await paymentsCollection.findOne(query);
+    //   const sslcommer = new SSLCommerzPayment(
+    //     process.env.SSL_STORE_ID,
+    //     process.env.SSL_PASS,
+    //     false
+    //    ); //true for live default false for sandbox
+    //   sslcommer.init(paymentData).then((data) => {
+    //     console.log('212', data);
+    //      if (data.status==='SUCCESS') {
+    //        console.log(data.GatewayPageURL);
+    //        res.status(200).redirect(data.GatewayPageURL);
+    //     }
+    //    });
+    // });
+    // app.post('/ipn', async (req, res) => {
+    //   console.log(req);
+    //   result = await ipnCollection.insertOne(req.body);
+    //   res.send(req.body);
+    // })
+    // // app.get('/validate', async (req, res) => {
+    // //   const data = res.headers.sessionkey;
+    // //   console.log(data);
+    // // })
+  }
+   finally {
     console.log("!");
   }
 };
