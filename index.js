@@ -8,7 +8,6 @@ const jwt = require("jsonwebtoken");
 const verify = require("jsonwebtoken/verify");
 const pay = require("./payment");
 const SSLCommerzPayment = require("sslcommerz").SslCommerzPayment;
-const { createProxyMiddleware } = require("http-proxy-middleware");
 
 app.use(cors());
 app.use(express.json());
