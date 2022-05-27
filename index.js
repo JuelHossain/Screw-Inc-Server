@@ -109,7 +109,7 @@ const run = async () => {
       const userEmail = req.params.email;
       const query = { email: userEmail };
       const users = await usersCollection.findOne(query);
-      res.send(user);
+      res.send(users);
     });
     //delete user only admin can do that
     app.delete("/users/:email", verifyJwt, verifyAdmin, async (req, res) => {
@@ -130,26 +130,28 @@ const run = async () => {
     app.get("/productCounts", async (req, res) => {
       const count = await productsCollection.countDocuments();
       res.send({ count });
-      console.log('total products :', count);
+      console.log("total products :", count);
     });
 
     // getting all products
     app.get("/products", async (req, res) => {
       const page = parseInt(req.query.page);
       const size = parseInt(req.query.size);
+      console.log(page, size);
       const query = {};
       const cursor = productsCollection.find(query);
       let products;
-      if (page || size) {
+      if (page && size) {
         products = await cursor
           .skip(page * size)
           .limit(size)
           .toArray();
+        console.log(products.length);
       } else {
         products = await cursor.toArray();
       }
       res.send(products);
-      console.log(products.length, 'sent successfully');
+      console.log(products.length, "sent successfully");
     });
 
     // getting one product with id
@@ -158,7 +160,7 @@ const run = async () => {
       const query = { _id: ObjectId(id) };
       const result = await productsCollection.findOne(query);
       res.send(result);
-      console.log(result.name, 'sent');
+      console.log(result.name, "sent");
     });
 
     // updating products by id
@@ -170,9 +172,13 @@ const run = async () => {
       const updatedDoc = {
         $set: newProduct,
       };
-      const result = await productsCollection.updateOne(filter, updatedDoc, options);
+      const result = await productsCollection.updateOne(
+        filter,
+        updatedDoc,
+        options
+      );
       res.send(result);
-      console.log(productsCollection.name, 'updated')
+      console.log(productsCollection.name, "updated");
     });
     //deleting single product from data base
     app.delete("/products/:id", async (req, res) => {
@@ -194,33 +200,42 @@ const run = async () => {
       const query = {};
       const result = await ordersCollection.find(query).toArray();
       res.send(result);
-      console.log('all orders sent');
+      console.log("all orders sent");
     });
     // getting single orders by id
-    app.get('/orders/:id', async (req, res) => {
+    app.get("/orders/:id", async (req, res) => {
       const id = req.params.id;
       const query = { _id: ObjectId(id) };
       const result = await ordersCollection.findOne(query);
       res.send(result);
     });
-    app.delete('/orders/:id', async (req, res) => {
+    app.delete("/orders/:id", async (req, res) => {
       const id = req.params.id;
       const query = { _id: ObjectId(id) };
       result = await ordersCollection.deleteOne(query);
       res.send(result);
-    })
-    // updating orders paid or not 
-    app.put('/orders/:id', async (req, res) => {
+    });
+    // updating orders paid or not
+    app.put("/orders/:id", async (req, res) => {
       const id = req.params.id;
       const payment = req.body;
       const query = { _id: ObjectId(id) };
       const updatedDoc = {
-        $set: payment
-      }
-      const result = await ordersCollection.updateOne(query, updatedDoc, { upsert: true });
+        $set: payment,
+      };
+      const result = await ordersCollection.updateOne(query, updatedDoc, {
+        upsert: true,
+      });
       res.send(result);
-      console.log(payment, 'paid');
-    })
+      console.log(payment, "paid");
+    });
+    // getting user order by email
+    app.get("/myOrders", async (req, res) => {
+      const email = req.query.email;
+      const filter = { userEmail: email };
+      const result = await ordersCollection.find(filter).toArray();
+      res.send(result);
+    });
     // app.post('/payments', async (req, res) => {
     //   const payment = req.body;
     //   const result = await paymentsCollection.insertOne(payment);
