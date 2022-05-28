@@ -7,6 +7,7 @@ const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const jwt = require("jsonwebtoken");
 const verify = require("jsonwebtoken/verify");
 const pay = require("./payment");
+const query = require("express/lib/middleware/query");
 const SSLCommerzPayment = require("sslcommerz").SslCommerzPayment;
 
 app.use(cors());
@@ -47,6 +48,7 @@ const run = async () => {
     const productsCollection = client.db("Screw").collection("products");
     const ordersCollection = client.db("Screw").collection("orders");
     const paymentsCollection = client.db("Screw").collection("payments");
+    const reviewCollection = client.db("Screw").collection("review");
     const ipnCollection = client.db("Screw").collection("ipn");
     //auth
     // verify admin
@@ -142,11 +144,11 @@ const run = async () => {
       const cursor = productsCollection.find(query);
       let products;
       if (page && size) {
-        products = await cursor
-          .skip(page * size)
+        products = await cursor.sort({_id:-1})
+          .skip(page > 1 ? (page-1) * size : 0)
           .limit(size)
           .toArray();
-        console.log(products.length);
+        
       } else {
         products = await cursor.toArray();
       }
@@ -236,6 +238,62 @@ const run = async () => {
       const result = await ordersCollection.find(filter).toArray();
       res.send(result);
     });
+    //posting reviews
+    app.post('/reviews', async (req, res) => {
+      const review = req.body;
+      const result = await reviewCollection.insertOne(review);
+      res.send(result);
+    });
+    // getting all recent reviews
+    app.get('/reviews', async (req, res) => {
+      const size = parseInt(req.query.size);
+      let result;
+      if (size) {
+        result = await reviewCollection.find({}).sort({ _id: -1 }).limit(size).toArray();
+      } else {
+        result = await reviewCollection.find({}).sort({ _id: -1 }).toArray();
+      }
+      res.send(result);
+    });
+    //getting review by id 
+    app.get('/reviews/:id', async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: ObjectId(id) };
+      const result = await reviewCollection.findOne(query);
+      res.send(result);
+    });
+    // getting my reviews by email 
+    app.get('/myreviews', async (req, res) => {
+      const email = req.query.email;
+      const filter = { userEmail: email };
+      const result = await reviewCollection.find(filter).toArray();
+      res.send(result);
+    })
+    //updating reviews
+    app.put("/reviews/:id", async (req, res) => {
+       const id = req.params.id;
+       const newReview = req.body;
+       const filter = { _id: ObjectId(id) };
+       const options = { upsert: true };
+       const updatedDoc = {
+         $set: newReview,
+       };
+       const result = await reviewCollection.updateOne(
+         filter,
+         updatedDoc,
+         options
+       );
+       res.send(result);
+       console.log(reviewCollection.userName, "review updated");
+    });
+    // deleting reviews 
+    app.delete('/reviews/:id', async (req, res) => {
+     const id = req.params.id;
+     const query = { _id: ObjectId(id) };
+     const result = await reviewCollection.deleteOne(query);
+     res.send(result);
+     console.log(reviewCollection.userName, "review deleted");
+    })
     // app.post('/payments', async (req, res) => {
     //   const payment = req.body;
     //   const result = await paymentsCollection.insertOne(payment);
