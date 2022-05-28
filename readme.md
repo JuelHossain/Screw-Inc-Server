@@ -11,4 +11,4 @@
 
 thank you everyone if you want to check the server is running or not 
 
-##### [please check the server here](screw-inc.herokuapp.com)
+##### [please check the server here](https://screw-inc.herokuapp.com)
