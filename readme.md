@@ -1,6 +1,6 @@
 ## This is the Server side for screw inc website 
 ### you can check the website here
-screw-inc.web.app
+#### [You Can Check the Website Link here.](screw-inc.web.app)
 
 ### technologies used in this app 
 - cors to prevent cors error
@@ -11,6 +11,4 @@ screw-inc.web.app
 
 thank you everyone if you want to check the server is running or not 
 
-please check the server here
-
-screw-inc.herokuapp.com
+##### [please check the server here](screw-inc.herokuapp.com)
