@@ -106,7 +106,7 @@ const run = async () => {
       res.send(users);
     });
     // get a single user by email only admin can do that
-    app.get("/users/:email", verifyJwt, async (req, res) => {
+    app.get("/users/:email", async (req, res) => {
       const userEmail = req.params.email;
       const query = { email: userEmail };
       const users = await usersCollection.findOne(query);
